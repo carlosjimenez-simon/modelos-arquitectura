@@ -66,3 +66,7 @@ Mapeo de contenedores y servicios sobre la infraestructura en la nube de Amazon 
 * **Cómputo:** AWS ECS con Fargate para contenedores de alta disponibilidad (Multi-AZ) sin gestión de servidores.
 * **Almacenamiento y Caché:** Amazon RDS PostgreSQL Multi-AZ, Amazon ElastiCache (Redis) para tokens de sesión y Amazon S3 para documentos adjuntos.
 * **Integración Híbrida:** Enlace seguro por VPN / Direct Connect hacia los servicios on-premise corporativos (Atenea, Faizer, DataPRO).
+
+
+## 6. Registro de Decisiones de Arquitectura (ADRs)
+* [ADR 0001: Adopción del Patrón Backend for Frontend (BFF) y Cómputo Serverless con AWS Fargate](./docs/adr/architecture_decision_record_adr_0001.md)
