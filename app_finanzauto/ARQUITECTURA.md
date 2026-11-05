@@ -1,4 +1,4 @@
-# Estándar de Modelado de Arquitectura - Finanzauto Mobile 2024
+# Estándar de Modelado de Arquitectura - Finanzauto Mobile 2026
 
 Este documento define la arquitectura de software de la aplicación móvil de Finanzauto siguiendo el modelo C4 (Contexto, Contenedores, Componentes y Vistas Dinámicas).
 
@@ -50,9 +50,9 @@ Estructura interna del **Microservicio de Trámites y PQRS**.
 ## 4. Diagrama Dinámico: Flujo Transaccional de Pago
 Secuencia numerada de la transacción de pago ágil de cuota.
 
-![Diagrama Dinámico](./docs/diagramas/c4-nivel4-dinamico-pagos.png)
+![Diagrama Dinámico](./docs/diagramas/c4-dinamico-pagos.png)
 
-* **Código fuente:** `docs/diagramas/c4-nivel4-dinamico-pagos.puml`
+* **Código fuente:** `docs/diagramas/c4-dinamico-pagos.puml`
 
 ---
 
