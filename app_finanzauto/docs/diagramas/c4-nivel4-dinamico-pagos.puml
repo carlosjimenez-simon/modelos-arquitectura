@@ -1,0 +1,38 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Dynamic.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama Dinámico (C4) - Flujo Transaccional de Pago Ágil
+
+Person(cliente, "Cliente Finanzauto", "Usuario con sesión activa en la aplicación móvil.")
+Container(app, "Aplicación Móvil", "Flutter / React Native", "Interfaz cliente en iOS / Android.")
+Container(gateway, "API Gateway", "Kong / AWS API GW", "Punto seguro de entrada y validación JWT.")
+Container(bff, "BFF Móvil", "Node.js / NestJS", "Orquestador de consultas y reglas móviles.")
+Container(pagos, "Microservicio de Pagos", "Java / Spring Boot", "Motor transaccional de pagos y callbacks.")
+ContainerDb(db, "Base de Datos", "PostgreSQL", "Registro de pagos y estados de transacción.")
+System_Ext(faizer, "Sistema Faizer", "Core de cartera y créditos.")
+System_Ext(placetopay, "PlacetoPay", "Pasarela de pagos multicanal.")
+
+' Paso a paso numerado
+Rel(cliente, app, "1. Selecciona 'Pago ágil' y escoge crédito a pagar")
+Rel(app, gateway, "2. GET /api/v1/creditos/{id}/saldo", "HTTPS")
+Rel(gateway, bff, "3. Enruta consulta de crédito", "gRPC")
+Rel(bff, faizer, "4. Consulta valor cuota y días de mora", "HTTPS / REST")
+Rel(faizer, bff, "5. Retorna saldo actualizado y semáforo")
+Rel(bff, app, "6. Despliega detalle de crédito y monto a pagar")
+
+Rel(cliente, app, "7. Selecciona método de pago y presiona 'Ir a pagar'")
+Rel(app, gateway, "8. POST /api/v1/pagos/iniciar", "HTTPS")
+Rel(gateway, pagos, "9. Enruta orden de pago", "gRPC")
+Rel(pagos, db, "10. Registra transacción en estado 'PENDIENTE'", "SQL")
+Rel(pagos, placetopay, "11. Crea sesión de checkout (monto, ref)", "HTTPS / REST")
+Rel(placetopay, app, "12. Abre pasarela de pago para completar transacción")
+
+Rel(placetopay, pagos, "13. Webhook: Notifica resultado 'APROBADO'", "HTTPS / REST")
+Rel(pagos, db, "14. Actualiza estado a 'PAGADO'", "SQL")
+Rel(pagos, faizer, "15. Aplica recaudo al crédito del cliente", "HTTPS / REST")
+Rel(pagos, app, "16. Confirma transacción exitosa en pantalla", "WebSockets / Push")
+Rel(app, cliente, "17. Muestra pantalla '¡Listo! Tu pago fue un éxito'")
+
+@enduml

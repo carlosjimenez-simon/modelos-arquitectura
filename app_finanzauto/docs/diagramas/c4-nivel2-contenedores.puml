@@ -1,0 +1,58 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Contenedores (C4 - Nivel 2) - Plataforma Móvil Finanzauto
+
+Person(cliente, "Cliente Finanzauto", "Usuario autenticado o en registro desde su celular.")
+Person(asesor, "Asesor SAC", "Atiende solicitudes de chat en vivo.")
+
+System_Boundary(c1, "Ecosistema Digital Finanzauto") {
+    Container(app_movil, "Aplicación Móvil", "Flutter / React Native / Nativo", "Interfaz cliente para iOS y Android. Maneja biometría, pagos, consultas y radicación de trámites.")
+    Container(api_gateway, "API Gateway", "Kong / AWS API Gateway", "Punto de entrada seguro, enrutamiento, rate limiting y validación de tokens JWT.")
+    Container(bff, "Backend for Frontend (BFF Móvil)", "Node.js / NestJS / Spring Boot", "Orquesta llamadas, adapta payloads para móvil y aplica reglas de negocio de la App.")
+    Container(servicio_tramites, "Microservicio de Trámites y PQRS", "Java / Spring Boot", "Gestiona la radicación de PQRS, actualización de datos y solicitudes de cobranza hacia Atenea.")
+    Container(servicio_pagos, "Microservicio de Pagos", "Java / Node.js", "Inicia pagos en pasarela, maneja webhooks de confirmación y concilia cuotas.")
+    Container(servicio_chat, "Servicio de Chat en Vivo", "Node.js / WebSockets", "Servidor de mensajería bidireccional en tiempo real entre cliente y asesor.")
+    Container(worker_cron, "Worker de Campañas y Sincronización", "Python / Go", "Consulta diaria a las 15:00 de créditos preaprobados y dispara campañas push.")
+    ContainerDb(db_app, "Base de Datos & Caché", "PostgreSQL / Redis", "Almacena sesiones activas, logs de auditoría y tokens de verificación de 5 minutos.")
+}
+
+' Sistemas Externos
+System_Ext(placetopay, "PlacetoPay", "Pasarela de pagos (PSE, tarjetas, billeteras virtuales).")
+System_Ext(atenea, "Sistema Atenea", "CRM / Radicador de casos y PQRS de Finanzauto.")
+System_Ext(faizer, "Sistema Faizer", "Core de cartera y créditos.")
+System_Ext(datapro, "DataPRO / Intranet", "Base de datos de fidelización y campañas preaprobadas.")
+System_Ext(signature, "Signature / Directorio", "Directorio corporativo y validación de usuarios.")
+System_Ext(push_service, "Proveedor Push (FCM / APNs)", "Entrega de notificaciones push a iOS y Android.")
+System_Ext(smtp, "Servidor de Correo (SMTP)", "Envío de correos de trámites a SAC.")
+
+' Relaciones Cliente y Asesor
+Rel(cliente, app_movil, "Usa", "GUI Móvil")
+Rel(asesor, servicio_chat, "Responde chats", "WebSockets / HTTPS")
+
+' Relaciones Internas
+Rel(app_movil, api_gateway, "Llamadas a servicios", "HTTPS / JSON")
+Rel(app_movil, servicio_chat, "Chat en tiempo real", "WSS (WebSockets Seguro)")
+
+Rel(api_gateway, bff, "Enruta tráfico", "HTTPS / gRPC")
+Rel(bff, servicio_tramites, "Envía solicitudes", "gRPC / REST")
+Rel(bff, servicio_pagos, "Inicia pago", "gRPC / REST")
+Rel(bff, db_app, "Consulta/guarda estados y códigos OTP", "TCP / SQL")
+
+Rel(servicio_tramites, db_app, "Registra auditoría", "TCP / SQL")
+Rel(servicio_pagos, db_app, "Guarda estado transaccional", "TCP / SQL")
+Rel(worker_cron, db_app, "Lee datos de usuarios", "TCP / SQL")
+
+' Relaciones con Sistemas Externos
+Rel(bff, signature, "Valida contraseñas y correos", "HTTPS / REST")
+Rel(bff, faizer, "Consulta saldos y mora de productos", "HTTPS / REST")
+Rel(servicio_pagos, placetopay, "Crea link de pago y recibe callback", "HTTPS / REST")
+Rel(servicio_tramites, atenea, "Crea radicados categorizados", "HTTPS / REST")
+Rel(servicio_tramites, smtp, "Dispara notificaciones a buzón SAC", "SMTP")
+Rel(worker_cron, datapro, "Extrae preaprobados a las 15:00", "SQL / ODBC")
+Rel(worker_cron, push_service, "Envía push de créditos aprobados", "HTTPS / REST")
+Rel(push_service, app_movil, "Entrega notificación al teléfono", "Apple/Google Push")
+
+@enduml

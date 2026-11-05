@@ -1,0 +1,44 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Componentes (C4 - Nivel 3) - Microservicio de Trámites y PQRS
+
+Container(bff, "Backend for Frontend (BFF)", "Node.js / NestJS", "Orquesta llamadas y entrega solicitudes autenticadas.")
+ContainerDb(db_app, "Base de Datos Transaccional", "PostgreSQL", "Almacena logs de auditoría y copias locales de radicados.")
+System_Ext(atenea, "Sistema Atenea", "CRM corporativo para gestión y resolución de casos.")
+System_Ext(smtp, "Servidor SMTP", "Envío de alertas a buzón SAC.")
+
+Container_Boundary(c_tramites, "Microservicio de Trámites y PQRS") {
+    Component(tramites_controller, "TramitesController", "Spring REST Controller", "Expone endpoints REST para radicación y consulta de trámites y PQRS.")
+    Component(validador_policy, "HabeasDataValidator", "Component / Service", "Verifica la aceptación obligatoria de la política de datos y completitud de campos.")
+    Component(tramites_service, "TramitesService", "Spring Service", "Aplica la lógica de negocio, tipificaciones y clasificación de solicitudes.")
+    Component(atenea_rule_engine, "AteneaRuleEngine", "Domain Logic", "Determina el agente asignado (Luz Pérez / Valeria Espinosa) y la oficina ('Bog' vs Ciudad).")
+    Component(atenea_client, "AteneaApiClient", "Feign / HTTP Client", "Serializa el payload en el formato de Atenea, ejecuta llamadas HTTPS y procesa respuestas.")
+    Component(pqrs_query_service, "PQRSQueryService", "Spring Service", "Gestiona la consulta por radicado o listado histórico por número de cédula.")
+    Component(notificacion_mailer, "MailerService", "Spring Mail", "Compone y envía notificaciones por correo para solicitudes especiales.")
+    Component(tramites_repo, "TramiteAuditRepository", "Spring Data JPA", "Persiste el historial de radicados recibidos y estados de sincronización.")
+}
+
+' Flujos de comunicación
+Rel(bff, tramites_controller, "Envía peticiones de radicación y consulta", "JSON / HTTPS")
+
+Rel(tramites_controller, validador_policy, "Valida aceptación de políticas y DTO", "Java Call")
+Rel(tramites_controller, tramites_service, "Delega radicación", "Java Call")
+Rel(tramites_controller, pqrs_query_service, "Delega consultas", "Java Call")
+
+Rel(tramites_service, atenea_rule_engine, "Solicita asignación de agente y oficina", "Java Call")
+Rel(tramites_service, atenea_client, "Solicita creación de caso", "Java Call")
+Rel(tramites_service, notificacion_mailer, "Solicita envío de correo si aplica", "Java Call")
+Rel(tramites_service, tramites_repo, "Registra radicado y auditoría", "Java Call")
+
+Rel(pqrs_query_service, atenea_client, "Consulta estado del radicado", "Java Call")
+Rel(pqrs_query_service, tramites_repo, "Lee histórico local si Atenea no responde", "Java Call")
+
+' Conexiones externas del contenedor
+Rel(atenea_client, atenea, "Crea casos y consulta radicados", "HTTPS / REST API")
+Rel(notificacion_mailer, smtp, "Despacha correos a servicioalcliente@", "SMTP")
+Rel(tramites_repo, db_app, "Guarda y lee auditoría", "JDBC / SQL")
+
+@enduml

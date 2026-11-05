@@ -1,0 +1,95 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Despliegue en AWS - Plataforma Móvil Finanzauto
+
+Deployment_Node(dispositivos, "Dispositivos Móviles de Clientes", "Smartphones de los usuarios") {
+    Deployment_Node(ios_android, "Sistema Operativo", "iOS / Android") {
+        Container(app_movil, "App Finanzauto", "Flutter / Native", "Cliente móvil instalado")
+    }
+}
+
+Deployment_Node(aws, "Amazon Web Services (AWS)", "Región us-east-1") {
+    
+    Deployment_Node(edge, "Capa Perimetral & DNS") {
+        Deployment_Node(route53, "Route 53", "Servicio DNS de AWS") {
+            Container(dns, "api.finanzauto.com.co", "DNS Record", "Enrutamiento público")
+        }
+        Deployment_Node(waf, "AWS WAF", "Web Application Firewall") {
+            Container(firewall, "Reglas WAF", "Shield / Rate Limit", "Protección contra ataques DDoS y bots")
+        }
+    }
+
+    Deployment_Node(vpc, "Virtual Private Cloud (VPC Finanzauto)", "10.0.0.0/16") {
+        
+        Deployment_Node(subred_publica, "Subredes Públicas (Multi-AZ)", "DMZ") {
+            Container(alb, "Application Load Balancer (ALB)", "AWS ALB", "Terminación TLS/SSL y balanceo de carga")
+            Container(nat, "NAT Gateway", "AWS NAT", "Salida segura a internet para subredes privadas")
+        }
+
+        Deployment_Node(subred_privada_app, "Subredes Privadas - Cómputo (Multi-AZ)", "App Layer") {
+            Deployment_Node(ecs_cluster, "AWS ECS Fargate Cluster", "Servicios en Contenedores Docker") {
+                Container(c_bff, "BFF Móvil", "Docker / Node.js", "Backend for Frontend")
+                Container(c_pagos, "Servicio Pagos", "Docker / Spring Boot", "Manejo transaccional de pagos")
+                Container(c_tramites, "Servicio Trámites", "Docker / Spring Boot", "Orquestador hacia Atenea")
+                Container(c_chat, "Servicio Chat", "Docker / WebSockets", "Servidor de chat en vivo")
+            }
+            Container(lambda_cron, "AWS Lambda / EventBridge", "Scheduled Task 15:00", "Worker de sincronización de preaprobados")
+        }
+
+        Deployment_Node(subred_privada_data, "Subredes Privadas - Datos (Multi-AZ)", "Data Layer") {
+            Deployment_Node(rds, "Amazon RDS Multi-AZ", "Base de Datos Relacional") {
+                ContainerDb(db_postgres, "PostgreSQL Primario / Standby", "Postgres 15+", "Auditoría, radicados y transacciones")
+            }
+            Deployment_Node(elasticache, "Amazon ElastiCache", "Caché en Memoria") {
+                ContainerDb(cache_redis, "Redis Cluster", "Redis 7", "Sesiones y códigos OTP de 5 minutos")
+            }
+        }
+    }
+
+    Deployment_Node(servicios_nube, "Servicios Administrados AWS") {
+        Container(s3, "Amazon S3", "Object Storage", "Almacenamiento de documentos, extractos y soportes PQRS")
+        Container(sns, "Amazon SNS", "Push Service", "Integración con FCM (Google) y APNs (Apple)")
+        Container(ses, "Amazon SES", "Email Service", "Envío de correos a servicioalcliente@finanzauto.com.co")
+    }
+}
+
+Deployment_Node(on_premise, "Centro de Cómputo Local Finanzauto", "On-Premise / Red Corporativa") {
+    Container(corp_faizer, "Faizer (Core Financiero)", "Servidor de Cartera", "Core de créditos")
+    Container(corp_atenea, "Atenea (CRM)", "Servidor de Casos", "CRM y radicador")
+    Container(corp_datapro, "DataPRO / Intranet", "Servidor de Datos", "Base de datos de preaprobados")
+}
+
+Deployment_Node(internet_externo, "Servicios Tercerizados (Internet)") {
+    Container(placetopay, "PlacetoPay Gateway", "SaaS / HTTPS", "Pasarela de recaudos")
+    Container(fcm_apns, "Push Providers", "FCM / APNs", "Pasarela de notificaciones push")
+}
+
+' Flujos de conexión
+Rel(app_movil, dns, "Resuelve endpoint", "DNS")
+Rel(dns, alb, "Enruta tráfico vía WAF", "HTTPS / 443")
+Rel(alb, c_bff, "Distribuye peticiones REST", "HTTP interno")
+Rel(alb, c_chat, "Distribuye WebSockets", "WSS")
+
+Rel(c_bff, c_pagos, "Invoca pago", "HTTP / gRPC")
+Rel(c_bff, c_tramites, "Radica solicitud", "HTTP / gRPC")
+Rel(c_bff, cache_redis, "Valida OTP / Sesión", "TCP / 6379")
+Rel(c_pagos, db_postgres, "Guarda transacción", "JDBC / 5432")
+Rel(c_tramites, db_postgres, "Guarda auditoría", "JDBC / 5432")
+Rel(c_tramites, s3, "Guarda adjuntos de PQRS", "HTTPS / S3 API")
+
+' Salida a Internet vía NAT
+Rel(c_pagos, nat, "Petición a PlacetoPay", "TCP")
+Rel(nat, placetopay, "Procesa checkout", "HTTPS / 443")
+Rel(lambda_cron, sns, "Dispara notificación de crédito", "HTTPS")
+Rel(sns, fcm_apns, "Envía push", "HTTPS")
+Rel(c_tramites, ses, "Envía email de trámite", "SMTP / HTTPS")
+
+' Conexión híbrida con On-Premise (VPN / Direct Connect)
+Rel(c_bff, corp_faizer, "Consulta saldos y mora", "VPN / TLS")
+Rel(c_tramites, corp_atenea, "Crea radicados en Atenea", "VPN / TLS")
+Rel(lambda_cron, corp_datapro, "Consulta diaria 15:00", "VPN / SQL")
+
+@enduml

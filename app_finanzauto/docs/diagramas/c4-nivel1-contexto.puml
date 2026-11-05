@@ -1,0 +1,35 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Contexto de Sistema (C4 - Nivel 1) - Plataforma Móvil Finanzauto
+
+Person(cliente, "Cliente Finanzauto", "Usuario que autogestiona sus créditos, realiza pagos y tramita solicitudes.")
+Person(asesor, "Asesor SAC", "Agente que atiende consultas por chat y gestiona casos radicados.")
+
+System(sistema_finanzauto, "Ecosistema Digital Finanzauto", "Permite consulta de créditos, pagos ágiles, trámites, descarga de extractos y chat en vivo.")
+
+System_Ext(placetopay, "PlacetoPay", "Pasarela de pagos (PSE, tarjetas de crédito y billeteras virtuales).")
+System_Ext(atenea, "Sistema Atenea", "CRM y radicador corporativo para PQRS, solicitudes de cartera y actualización de datos.")
+System_Ext(faizer, "Sistema Faizer", "Core transaccional y de cartera donde residen los datos de los créditos y estados de mora.")
+System_Ext(datapro, "DataPRO / Intranet", "Gestor de campañas y repositorio de créditos de fidelización preaprobados.")
+System_Ext(notificaciones, "Proveedor Push (FCM / APNs)", "Servicio en la nube para el envío de notificaciones push a dispositivos móviles.")
+System_Ext(correo, "Servidor de Correo (SMTP)", "Envío de alertas a servicioalcliente@finanzauto.com.co.")
+System_Ext(signature, "Signature / Directorio Web", "Directorio centralizado de identidades y credenciales de clientes web y app.")
+
+' Relaciones principales
+Rel(cliente, sistema_finanzauto, "Consulta créditos, paga cuotas, radica PQRS y chatea", "HTTPS / Móvil")
+Rel(asesor, atenea, "Gestiona y da respuesta a los trámites radicados", "HTTPS / Web")
+Rel(asesor, sistema_finanzauto, "Atiende el chat en vivo con los clientes", "WebSockets / HTTPS")
+
+' Relaciones externas
+Rel(sistema_finanzauto, placetopay, "Inicia sesiones de pago y recibe confirmación", "HTTPS / REST API")
+Rel(sistema_finanzauto, atenea, "Radica PQRS y solicitudes con número de radicado", "HTTPS / REST API")
+Rel(sistema_finanzauto, faizer, "Consulta saldos, cuotas y validación de mora", "HTTPS / API")
+Rel(sistema_finanzauto, datapro, "Consulta diaria de preaprobados y valida enlaces", "HTTPS / API")
+Rel(sistema_finanzauto, signature, "Sincroniza y valida credenciales de autenticación", "HTTPS / Directorio")
+Rel(sistema_finanzauto, notificaciones, "Dispara notificaciones push a los dispositivos", "HTTPS")
+Rel(sistema_finanzauto, correo, "Envía solicitudes comerciales y programación de débitos", "SMTP")
+
+@enduml
